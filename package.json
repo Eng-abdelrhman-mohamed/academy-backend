@@ -20,6 +20,9 @@
   "scripts": {
     "start": "nodemon index.js"
   },
+    "engines": {
+    "node": "20.13.1"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
