@@ -4,15 +4,21 @@ const Grade = require('../models/grade.model');
 const AsyncWraper = require('express-async-wrap');
 const User = require('../models/users.model');
 const jwt = require('jsonwebtoken');
-
 const multer = require('multer')
+const cloudinary = require('cloudinary')
 
+
+
+
+    cloudinary.config({ 
+        cloud_name: 'da1ydpcew', 
+        api_key: '817781158729924', 
+        api_secret: 'xfY6fTnDVsGv3hms05xm5w16F3A' // Click 'View Credentials' below to copy your API secret
+    });
+    
 
 
 const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploadsVideo')
-      },
       filename: function (req, file, cb) {
         const uniqueSuffix = "subject-" + Date.now() + '-' + Math.round(Math.random() * 1E9) + '.' + file.mimetype.split('/')[1]
         cb(null, uniqueSuffix)
@@ -23,18 +29,26 @@ const upload = multer({storage})
 // create course
 router.post("/api/grade",upload.single('avatar'), AsyncWraper ( async ( req , res )=>{
 const { title , price , grade , subject , video } = req.body;
-const avatar = req.file.filename
 
-    const newGrade = new Grade({
-    title,
-    price,
-    grade,
-    subject,
-    avatar,
-    video
-    })
-    await newGrade.save();
-    res.status(201).json({status:"SUCCESS",msg:"course have been created"})
+
+cloudinary.uploader.upload(req.file.path,async(result,err)=>{
+    if(!err){
+        const newGrade = new Grade({
+            title,
+            price,
+            grade,
+            subject,
+            avatar:result.url,
+            video
+            })
+            await newGrade.save();
+            res.status(201).json({status:"SUCCESS",msg:"course have been created"})
+        
+    }
+    else{
+        res.status(500).json({status:"FAIL",data:[]})
+    }
+})
 }))
 
 // get grade 10 course with subject name

@@ -9,13 +9,18 @@ const bcrypt = require('bcrypt');
 const AsyncWraper = require('express-async-wrap');
 const jwt = require('jsonwebtoken');
 const multer = require('multer')
+const cloudinary = require("cloudinary");
+
+
+cloudinary.config({ 
+    cloud_name: 'da1ydpcew', 
+    api_key: '817781158729924', 
+    api_secret: 'xfY6fTnDVsGv3hms05xm5w16F3A' // Click 'View Credentials' below to copy your API secret
+});
 
 
 
 const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploadsUser')
-      },
       filename: function (req, file, cb) {
         const uniqueSuffix = "user-" + Date.now() + '-' + Math.round(Math.random() * 1E9) + '.' + file.mimetype.split('/')[1]
         cb(null, uniqueSuffix)
@@ -101,13 +106,23 @@ router.patch('/api/users/edit',
     if(result.isEmpty()){
         const token = req.headers['token']
         const { name , number , grade , country } = req.body
-        const avatar = req.file.filename
         jwt.verify( token , process.env.JWT_SECRET_KEY , async ( err , decoded )=>{
             if(!err){
                 const user = await User.findOne({token},{_id:true});
                 if(user){
-                    await User.updateOne({token},{ name , number , avatar , grade , country })
-                    res.status(200).json({status:"SUCCESS"})
+                    cloudinary.uploader.upload(req.file.path,async(result,err)=>{
+                        if(!err){
+                            await User.updateOne({token},
+                                {
+                                name ,
+                                number ,
+                                avatar :result.url, 
+                                grade , 
+                                country })
+                            res.status(200).json({status:"SUCCESS"})
+                        }
+                    })
+                    
                 }else{
                 res.status(404).json({status:"FAIL",data:[],msg:"Invalide data"})
                 }

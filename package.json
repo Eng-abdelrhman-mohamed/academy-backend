@@ -1,6 +1,8 @@
 {
   "dependencies": {
+    "@vercel/blob": "^0.23.4",
     "bcrypt": "^5.1.1",
+    "cloudinary": "^2.3.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
@@ -20,7 +22,7 @@
   "scripts": {
     "start": "nodemon index.js"
   },
-    "engines": {
+  "engines": {
     "node": "20.13.1"
   },
   "keywords": [],
