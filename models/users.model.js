@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 
+
+
+
 const user_Schema = new mongoose.Schema({
     number:{
         type:String,
@@ -51,7 +54,14 @@ const user_Schema = new mongoose.Schema({
     avatar:{
         type:String,
         default:'profile.jpg'
-    }
+    },
+    subscription:[{
+          name: String,
+    purchaseDate: {
+        type: Date,
+        required: true
+    },
+    }]
 })
 const User = mongoose.model('users',user_Schema)
 
