@@ -32,11 +32,17 @@ const createCodes = asyncWrapper( async(req,res)=>{
 const buyCode = asyncWrapper( async(req,res)=>{
     const token = req.headers['token'];
     const code = req.headers['code']
-    const findUser = await User.findOne({token},{password:false})
+    const findUser = await User.findOne({ token } , { password: false } )
     const findCode = await wallet_Schema.findOne({code})
         if(findUser && findCode){
         await wallet_Schema.deleteOne({code})
         await User.updateOne({token},{wallet:(+findUser.wallet + 50)})
+        await findUser.transactions.push({
+            mode:true,
+            title:'شراء كود',
+            money: 50
+        })
+        findUser.save()
         res.status(200).json({status:"SUCCESS",data:[],msg:'you have bought code'})
         }
         else{

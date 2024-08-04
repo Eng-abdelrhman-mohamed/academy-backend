@@ -131,9 +131,7 @@ router.get('/api/grade11/:name_subject', AsyncWraper ( async ( req , res )=>{
         });
     res.status(200).json({status:"SUCCESS",data:filteredCourses})
 }))
-
 // get grade 12 course with subject name
-
 router.get('/api/grade12/:name_subject', AsyncWraper ( async ( req , res )=>{
     const subjectName = req.params["name_subject"]
     const grade12_courses = await Grade.find({grade:"grade12",subject:subjectName})
@@ -152,127 +150,195 @@ router.get('/api/grade12/:name_subject', AsyncWraper ( async ( req , res )=>{
 
 // buy course
 
-router.get('/api/courses/:course_id', AsyncWraper ( async ( req , res )=>{
-    const token = req.headers['token']
-    const courseId = req.params['course_id']
-    const course = await Grade.findOne({_id:courseId},{price:true , discount:true , mini_price:true ,  users:true })
-    const user = await User.findOne({token},{wallet:true,courses:true,_id:true})
-    const courses = user.courses;
-    const users_courses = [...course.users]
-    let check = false
-if(user){
-    if(course){
-        for(i=0 ; i < courses.length ; i++){
-            if(courses[i].id == courseId){
-            check = true
-            }
-        }
-        if(!check){
-            if(course.discount == 'true'){
-                if(user.wallet >= course.mini_price){
-                    const new_courses_discoun = [];
-                    const object_disc = {};
-                    object_disc.again = 3 ;
-                    object_disc.id = courseId;
-                    if(courses[0] == [][0]){
-                        new_courses_discoun.push(object_disc)
-                        users_courses.push(user._id) 
-                        await User.updateOne({token},{wallet:user.wallet - course.mini_price,courses:new_courses_discoun })
-                        await Grade.updateOne({_id:courseId},{users:users_courses})
-                    }else{
-                        new_courses_discoun.push(...courses) 
-                        new_courses_discoun.push(object_disc) 
-                        users_courses.push(user._id) 
-                        await User.updateOne({token},{wallet:user[0].wallet - course.mini_price,courses:new_courses_discoun })
-                        await Grade.updateOne({_id:courseId},{users:users_courses})
+// feature buy course
+router.get('/api/courses/:mounth_id/:course_id', AsyncWraper ( async ( req , res )=>{
+
+    const token = req.headers['token'];
+    const courseId = req.params["course_id"];
+    const mounthId = req.params["mounth_id"];
+    const mounth = await Grade.findOne({_id:mounthId})
+    const user = await User.findOne({token},{subscription:true,wallet:true,courses:true,transactions:true})
+    const courses_user = user.courses
+    const course = [] 
+    let check = false 
+    jwt.verify(token,process.env.JWT_SECRET_KEY,async (err, decoded)=>{
+        if(!err){
+            if(mounth){
+                mounth.courses.map((subcourse)=>{ if(subcourse._id == courseId) course.push(subcourse) })
+                if(course.length > 0){
+                    for(i=0 ; i < courses_user.length ; i++){
+                        if(courses_user[i].id == courseId){
+                        check = true
+                        }
                     }
-                    res.status(200).json({status:"SUCCESS",data:[]})
+                    if(!check){
+                        if(course[0].discount == true){
+                            if(user.wallet >= course[0].mini_price){
+                                const new_courses_discoun = [];
+                                const object_disc = {};
+                                object_disc.again = 3 ;
+                                object_disc.id = courseId;
+                                if(courses_user[0] == [][0]){
+                                    new_courses_discoun.push(object_disc)
+                                    await User.updateOne({token},{wallet:user.wallet - course[0].mini_price,courses:new_courses_discoun })
+                                    await user.transactions.push({
+                                        mode:false,
+                                        title:course[0].title,
+                                        money:- (+course[0].mini_price)
+                                    })
+                                    user.save()
+                                }else{
+                                    new_courses_discoun.push(...courses) 
+                                    new_courses_discoun.push(object_disc) 
+                                    await User.updateOne({token},{wallet:user.wallet - course[0].mini_price,courses:new_courses_discoun })
+                                    await user.transactions.push({
+                                        mode:false,
+                                        title:course[0].title,
+                                        money:- (+course[0].mini_price)
+                                    })
+                                        user.save()
+                                }
+                                res.status(200).json({status:"SUCCESS",data:[]})
+                            }else{
+                                res.status(404).json({status:"FAIL",data:[],msg:"you dont have enough money"})
+                            }
+                        }
+                        else{
+                            if(user.wallet >= course[0].price){
+                                const new_courses = [];
+                                const object = {};
+                                object.again = 3;
+                                object.id = courseId;
+                                
+                                if(courses_user[0] == [][0]){
+                                new_courses.push(object)
+                                await User.updateOne({token},{wallet:user.wallet - course[0].price,courses:new_courses})
+                                await user.transactions.push({
+                                    mode:false,
+                                    title:course[0].title,
+                                    money:- (+course[0].price)
+                                })
+                                user.save()
+                                }else{
+                                    new_courses.push(...courses_user) 
+                                    new_courses.push(object)
+                                    await User.updateOne({token},{wallet:user.wallet - course[0].price,courses:new_courses})
+                                    await user.transactions.push({
+                                        mode:false,
+                                        title:course[0].title,
+                                        money:- (+course[0].price)
+                                    })
+                                user.save()
+                                }    
+                                res.status(200).json({status:"SUCCESS",data:[]})
+                            }else{
+                                res.status(404).json({status:"FAIL",data:[],msg:"you dont have enough money"})
+                            }
+                        }
+                    }else{
+                    res.status(404).json({status:"FAIL",data:[],msg:"you have this course already"})
+                    }
                 }else{
-                    res.status(404).json({status:"FAIL",data:[],msg:"you dont have enough money"})
+                    res.status(404).json({status:"FAIL",data:[],msg:"this course is not exicted"})
+                }
+                
+                }else{
+                res.status(404).json({status:"FAIL",data:[],msg:"this mounth is not exicted"})
+                }
+        }else{
+            res.status(404).json({status:"FAIL",msg:"Invalid token",data:[]})
+        }
+    })
+})) 
+// feature شراء الشهري 
+router.get('/api/courses/:mounth_id',AsyncWraper( async ( req , res )=>{
+    const token = req.headers['token'];
+    const mounth_id = req.params['mounth_id'];
+    const user = await User.findOne({ token } , {courses : true , mounths : true} )
+    let check = false
+    jwt.verify(token , process.env.JWT_SECRET_KEY , async(err,encoded)=>{
+        if(!err){
+            if(user.mounths.length > 0){
+                user.mounths.map((mounth)=>{mounth.id_of_mounth == mounth_id && ( check  = true )})
+                if(!check){
+                    
+
+
+
+                    await user.mounths.push({
+                        id_of_mounth:mounth_id
+                    })
+                    user.save()
+
+
+
+
+
+
+
+
+
+
+                }else{
+                    res.status(404).json({status:"FAIL",data:[],msg:'you have this course already'})
                 }
             }
             else{
-                if(user.wallet >= course.price){
-                    const new_courses = [];
-                    const object = {};
-                    object.again = 3;
-                    object.id = courseId;
-                    
-                    if(courses[0] == [][0]){
-                    new_courses.push(object)
-                    users_courses.push(user._id) 
-                    await User.updateOne({token},{wallet:user.wallet - course.price,courses:new_courses})
-                    await Grade.updateOne({_id:courseId},{users:users_courses})
-                    }else{
-                        new_courses.push(...courses) 
-                        new_courses.push(object)
-                        users_courses.push(user._id) 
-                        await User.updateOne({token},{wallet:user.wallet - course.price,courses:new_courses})
-                        await Grade.updateOne({_id:courseId},{users:users_courses})
-                    }    
-                    res.status(200).json({status:"SUCCESS",data:[]})
-                }else{
-                    res.status(404).json({status:"FAIL",data:[],msg:"you dont have enough money"})
-                }
+                await user.mounths.push({
+                    id_of_mounth:mounth_id
+                })
+                user.save()
             }
-                
         }else{
-            res.status(404).json({status:"FAIL",data:[],msg:"you have this course already"})
+            res.status(404).json({status:"FAIL",msg:"Invalid token",data:[]})
         }
-    }else{
-        res.status(404).json({status:"FAIL",data:[],msg:"this course is not existed"})
-    }
-}else{
-    res.status(404).json({status:"FAIL",data:[],msg:"you dont have account"})
-}
-}))
-
-// الدخول للكورس
-router.get('/api/:course_id' , AsyncWraper ( async (req ,res)=>{
-    const course_id = req.params['course_id']
-    const token = req.headers['token']
-    jwt.verify(token,process.env.JWT_SECRET_KEY, async ( err , decoded ) =>{
+    })
+}))  
+// feature الدخول للكورس
+router.get('/api/:mounth_id/:course_id' , AsyncWraper ( async ( req , res )=>{
+    const token = req.headers['token'];
+    const mounthId = req.params['mounth_id'];
+    const courseId = req.params['course_id'];
+    jwt.verify(token,process.env.JWT_SECRET_KEY , async ( err , decoded )=>{
         if(!err){
             const find_user = await User.findOne({token},{ courses:true , subscription:true })
-            const find_course = await Grade.findOne({_id:"66a4054d66641fa76f2e8acd"},{grade:true})
-            if(find_user){
+            const find_mounth = await Grade.findOne({_id:mounthId } , {courses :true} )
+            let find_course;
+            find_mounth.courses.map((course)=>{course._id == courseId &&( find_course = course)})
+            if(find_course){
                 if(find_user.subscription[0] && find_user.subscription[0].name == find_course.grade){
-                    const data_course = await Grade.find({_id:course_id})
-                    res.status(200).json({status:"SUCCESS",data:data_course})
+                    res.status(200).json({status:"SUCCESS",data:find_course})
                 }else{
                     const courses = find_user.courses
-                    let check = false
+                    let check = false;
                     let again ;
                     for(i = 0 ; i < courses.length ; i++){
-                        if(courses[i].id == course_id){
+                        if(courses[i].id == courseId){
                             check = true;
                             again = courses[i].again;
                         }
                     }
                     if(check && again > 0 ){
-                        const data_course = await Grade.find({_id:course_id})
                         if(again != 1){
-                            await User.updateOne({token,'courses.id':course_id},{ $set: { 'courses.$.again': (again - 1) } })
+                            await User.updateOne({token,'courses.id':courseId},{ $set: { 'courses.$.again': (again - 1) } })
                         }else{
-                            await User.updateOne({token},{ $pull: { courses: {id : course_id} } })
+                            await User.updateOne({token},{ $pull: { courses: {id : courseId} } })
                         }
-                        const grade = await Grade.findOne({_id:course_id},{watched:true})
-                        await Grade.updateOne({_id:course_id},{watched:grade.watched + 1})
-                        res.status(200).json({status:"SUCCESS",data:data_course})
+                        res.status(200).json({status:"SUCCESS",data:find_course})
                     }else{
                     res.status(404).json({status:"FAIL",data:[],msg:"اشتري الكورس الأول"})
                     }
                 }
-            }
-            else{
-                res.status(404).json({status:"FAIL",data:[],msg:"this user is not defiend"})
+            }else{
+                res.status(404).json({status:"FAIL",data:[] , msg:"this course not found"})
             }
         }
         else{
-            res.status(404).json({status:"FAIL",data:[],msg:err.message})
-        }
+            res.status(404).json({status:"FAIL" , data:[] , msg: "invalid token" })
+        } 
     })
 }))
+
 
 // subscription year
 router.get('/api/subscription/:courseId' , AsyncWraper( async ( req , res ) => {
@@ -305,6 +371,6 @@ const price = 300
     })
 }))
 
-// 
-module.exports = router
 
+module.exports = router
+ 

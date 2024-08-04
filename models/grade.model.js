@@ -65,6 +65,10 @@ const gradeSchema = new mongoose.Schema({
         time:{
             type:String,
             required:true
+        },
+        grade:{
+            type:String,
+            required:true
         }
     }]
 })
